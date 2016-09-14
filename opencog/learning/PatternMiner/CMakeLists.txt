@@ -1,18 +1,17 @@
 
 
+# Pattern miner build file.
 
 ADD_LIBRARY (PatternMiner SHARED
 	Pattern
 	HTree
 	PatternMiner
 	PatternMinerBF
-        PatternMinerDF
-        PatternMinerDistributedWorker
-        PatternMinerCentralServer
+	PatternMinerDF
+	PatternMinerDistributedWorker
+	PatternMinerCentralServer
 )
 
-
-ADD_DEPENDENCIES(PatternMiner opencog_atom_types)
 ADD_DEPENDENCIES(PatternMiner embodiment_atom_types)
 ADD_DEPENDENCIES(PatternMiner spacetime_atom_types)
 
@@ -23,15 +22,15 @@ TARGET_LINK_LIBRARIES (PatternMiner
 )
 
 ADD_LIBRARY(TestPatternMinerAgent SHARED
-	TestPatternMinerAgent    
+	TestPatternMinerAgent
 )
 
 ADD_LIBRARY(DistributedPatternMinerClient SHARED
-        DistributedPatternMinerClient
+	DistributedPatternMinerClient
 )
 
 ADD_LIBRARY(DistributedPatternMinerServer SHARED
-        DistributedPatternMinerServer
+	DistributedPatternMinerServer
 )
 
 TARGET_LINK_LIBRARIES (TestPatternMinerAgent
@@ -39,20 +38,17 @@ TARGET_LINK_LIBRARIES (TestPatternMinerAgent
 )
 
 TARGET_LINK_LIBRARIES (DistributedPatternMinerClient
-        PatternMiner
+	PatternMiner
 )
 
 TARGET_LINK_LIBRARIES (DistributedPatternMinerServer
-        PatternMiner
+	PatternMiner
 )
 
 INSTALL (FILES
-
 	Pattern.h
 	HTree.h
 	PatternMiner.h
 
 	DESTINATION "include/${PROJECT_NAME}/PatternMiner"
 )
-
-

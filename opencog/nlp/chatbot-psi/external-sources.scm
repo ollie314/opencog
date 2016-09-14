@@ -7,6 +7,7 @@ from opencog.atomspace import AtomSpace, types, TruthValue
 
 import urllib2
 import json
+import nltk
 import threading
 import xml.etree.ElementTree as ET
 
@@ -21,8 +22,10 @@ def set_atomspace(atsp):
 def to_duckduckgo(qq):
     global atomspace
 
+    nltk_splitter = nltk.data.load('tokenizers/punkt/english.pickle')
+
     # Anchor for the result
-    answer_anchor = atomspace.add_node(types.AnchorNode, 'Chatbot: DuckDuckGoAnswers')
+    answer_anchor = atomspace.add_node(types.AnchorNode, 'Chatbot: DuckDuckGoAnswer')
 
     # Avoid HTTP Error 400: Bad Request
     query = qq.name.replace(' ', '+')
@@ -34,7 +37,8 @@ def to_duckduckgo(qq):
 
     if abstract_text:
         word_nodes = []
-        words = abstract_text.split(' ')
+        sentences = nltk_splitter.tokenize(abstract_text)
+        words = sentences[0].split(' ')
         for word in words:
             word_nodes.append(atomspace.add_node(types.WordNode, word))
         ans = atomspace.add_link(types.ListLink, word_nodes)
@@ -52,7 +56,8 @@ def to_wolframalpha(qq, aid):
         raise ValueError('AppID for Wolfram|Alpha Webservice API is missing!')
 
     # Anchor for the result
-    answer_anchor = atomspace.add_node(types.AnchorNode, 'Chatbot: WolframAlphaAnswers')
+    answer_anchor = atomspace.add_node(types.AnchorNode, 'Chatbot: WolframAlphaAnswer')
+    no_result = atomspace.add_node(types.ConceptNode, 'Chatbot: NoResult')
 
     # Avoid HTTP Error 400: Bad Request
     query = qq.name.replace(' ', '+')
@@ -85,6 +90,8 @@ def to_wolframalpha(qq, aid):
 
         # For common punctuations, to turn them into actual WordNode later
         result = result.replace(',', ' ,').replace('.', ' .').replace('?', ' ?').replace('!', ' !')
+    else:
+        atomspace.add_link(types.StateLink, [answer_anchor, no_result])
 
     # Write to AtomSpace
     if result:
@@ -96,7 +103,6 @@ def to_wolframalpha(qq, aid):
         ans = atomspace.add_link(types.ListLink, word_nodes)
         atomspace.add_link(types.StateLink, [answer_anchor, ans])
     else:
-        no_result = atomspace.add_node(types.ConceptNode, 'Chatbot: NoResult')
         atomspace.add_link(types.StateLink, [answer_anchor, no_result])
 
 def call_duckduckgo(qq):
@@ -115,13 +121,16 @@ def call_wolframalpha(qq, aid):
 
 ; AppID for Wolfram|Alpha Webservice API
 (define appid "")
+(define has-wolframalpha-setup #f)
 
-(define (set-appid id)
+(define-public (set-appid id)
     (set! appid id)
+    (State wolframalpha default-state)
+    (set! has-wolframalpha-setup #t)
 )
 
-(define-public (ask-duckduckgo)
-    (State duckduckgo-search search-started)
+(define (ask-duckduckgo)
+    (State duckduckgo process-started)
 
     ; TODO: We may want to actually nlp-parse the answer, but a typical answer
     ; of this type seems to be very long (a paragraph), split into sentences
@@ -129,19 +138,19 @@ def call_wolframalpha(qq, aid):
     (begin-thread
         (cog-evaluate! (Evaluation (GroundedPredicate "py: call_duckduckgo")
             (List (get-input-text-node))))
-        (State duckduckgo-search search-finished)
+        (State duckduckgo process-finished)
     )
 )
 
-(define-public (ask-wolframalpha)
+(define (ask-wolframalpha)
     (if (not (equal? appid ""))
         (begin-thread
             (define appid_node (Node appid))
-            (State wolframalpha-search search-started)
+            (State wolframalpha process-started)
 
             (cog-evaluate! (Evaluation (GroundedPredicate "py: call_wolframalpha")
                 (List (get-input-text-node) appid_node)))
-            (State wolframalpha-search search-finished)
+            (State wolframalpha process-finished)
             (cog-extract appid_node)
         )
     )

@@ -1,21 +1,20 @@
-#include <string>
 #include <cstdio>
+#include <string>
 
 #include <opencog/util/Config.h>
 #include <opencog/cogserver/server/CogServer.h>
-#include <opencog/cogserver/server/RequestResult.h>
 #include <opencog/cogserver/modules/python/PyMindAgent.h>
 
 using std::string;
 
 using namespace opencog;
 
-class StringRequestResult : public RequestResult
+class StringRequestResult
 {
 public:
     string result;
-    StringRequestResult(): RequestResult ("text/plain"){};
-    ~StringRequestResult(){};
+    StringRequestResult() {};
+    ~StringRequestResult() {};
     virtual void SendResult(const std::string& res) {
         result = res;
     }
@@ -63,12 +62,6 @@ public:
         logger().set_level(Logger::DEBUG);
         logger().set_print_to_stdout_flag(true);
 
-        // setup global logger
-        logger().set_filename(config()["LOG_FILE"]);
-        logger().set_level(Logger::get_level_from_string(config()["LOG_LEVEL"]));
-        logger().set_backtrace_level(Logger::get_level_from_string(config()["BACK_TRACE_LOG_LEVEL"]));
-        logger().set_print_to_stdout_flag(config().get_bool("LOG_TO_STDOUT"));
-
         // set cycle duration to a smaller value so that this test do not take too long.
         config().set("SERVER_CYCLE_DURATION", "10");  // in milliseconds
         TestCogServer& cogserver = static_cast<TestCogServer&>(server(TestCogServer::createInstance));
@@ -98,7 +91,6 @@ public:
         TS_ASSERT(loadpyRequest != NULL);
         loadpyRequest->addParameter("test_agent_w_load_exception");
         StringRequestResult *srr = new StringRequestResult();
-        loadpyRequest->setRequestResult(srr);
         // add request to queue
         cogserver.pushRequest(loadpyRequest);
         // process request

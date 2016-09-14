@@ -3,10 +3,11 @@
 (use-modules (srfi srfi-1)) ; For `append-map`
 
 (use-modules (opencog) (opencog exec) (opencog query) (opencog rule-engine))
+(use-modules (opencog logger))
 
 (load "action-selector.scm")
 (load "demand.scm")
-(load "modulator.scm")
+(load "control.scm")
 (load "rule.scm")
 (load "utilities.scm")
 
@@ -76,14 +77,35 @@
                (goals (psi-related-goals action))
                (context-atoms (get-context-grounding-atoms rule)))
 
+           (cog-logger-info
+                "[OpenPsi] Starting evaluation psi-rule = ~a"
+                (psi-rule-alias rule))
+
+            ; The #t condition is for evaluatable-contexts. These are
+            ; contexts that only have evaluatable-terms that return TRUE_TV
+            ; or FALSE_TV.
+            ; The #f condition is for groundable-contexts. These are contexts,
+            ; that are similar to the implicant of a BindLink. The contexts are
+            ; grounded and the grounding atoms are put into the action (that is
+            ; equivalent to the implicand of the BindLink).
             (if (null? context-atoms)
-                (cog-execute! action)
-                (cog-execute! (PutLink action context-atoms))
+                (cog-evaluate! action)
+                ; FIXME Since the PutLink is wrapped in a TrueLink any
+                ; information due to the evaluation of the action is lost.
+                (cog-evaluate! (True (PutLink action context-atoms)))
             )
+            ; An evaluation of an action that is common in mulitple rules
+            ; results in the achievement of the goals, even if the context of
+            ; the other rules aren't not satisfied.
             (map cog-evaluate! goals)
         ))
 
+    (cog-logger-info "[OpenPsi] loop-count = ~a" (psi-get-loop-count))
 
+    ; Run the controler that updates the weight.
+    (psi-controller-update-weights)
+
+    ; Do action-selection & orchesteration.
     (map
         (lambda (d)
             (let ((updater (psi-get-updater d)))
@@ -129,9 +151,10 @@
             (null? (cog-chase-link 'DefineLink 'SatisfactionLink loop-node)))
         (define-psi-loop))
 
-    (set! psi-do-run-loop #t)
-    (call-with-new-thread
-        (lambda () (cog-evaluate! loop-node)))
+    (if (not (psi-running?))
+        (begin
+            (set! psi-do-run-loop #t)
+            (call-with-new-thread (lambda () (cog-evaluate! loop-node)))))
 )
 
 ; -------------------------------------------------------------
